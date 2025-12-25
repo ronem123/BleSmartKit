@@ -11,6 +11,7 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,10 +22,13 @@ import com.ram.mandal.blesmartkit.data.model.DiscoveredBleDevice
 import com.ram.mandal.blesmartkit.data.repository.NepalTrialRepository
 import com.ram.mandal.blesmartkit.ui.UIState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Scope
 
 
 /**
@@ -43,6 +47,10 @@ class HomeViewModel @Inject constructor(
 
     private val _bleDevices = MutableStateFlow<UIState<List<DiscoveredBleDevice>>>(UIState.Empty)
     val bleDevices: StateFlow<UIState<List<DiscoveredBleDevice>>> = _bleDevices
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning
+
 
     private val bluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -71,8 +79,7 @@ class HomeViewModel @Inject constructor(
                             rssi = result.rssi,
                             txPower = result.txPower,
                             serviceUUIDs = result.scanRecord?.serviceUuids?.map { sId -> sId.uuid.toString() }
-                                ?: emptyList()
-                        )
+                                ?: emptyList())
                         if (!currentList.contains(bleDevice)) {
                             //update ble device if new found due to rssi update
                             //let say there is device with mac : 12:23:23:21 and rssi 1
@@ -102,33 +109,35 @@ class HomeViewModel @Inject constructor(
 
     private fun hasBlePermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) ==
-                    PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                    ) ==
-                    PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(
+                context, Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
         } else {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
-                    PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
         }
     }
+
 
     @SuppressLint("MissingPermission")
     fun startScan() {
         if (!hasBlePermission()) return
-//        if (_bleDevices.value !is UIState.Loading) {
-//            viewModelScope.launch {
-//                _bleDevices.emit(UIState.Loading)
-//            }
-//        }
         bleScanner?.startScan(bleScanCallback)
+        _isScanning.value = true
     }
 
     @SuppressLint("MissingPermission")
     fun stopScan() {
+        Log.v("ViewModel", "Stopped scanning...")
         bleScanner?.stopScan(bleScanCallback)
+        viewModelScope.launch {
+            _isScanning.emit(false)
+        }
     }
 
     // Reset BLE state before retry scan

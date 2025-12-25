@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -701,7 +702,11 @@ fun ManoranjanaatmakNewsRow(newsItem: NewsItem, onItemClick: (NewsItem) -> Unit)
 
 
 @Composable
-fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> Unit) {
+fun BleCard(
+    device: DiscoveredBleDevice,
+    onItemClick: (DiscoveredBleDevice) -> Unit,
+    onConnectClicked: () -> Unit
+) {
     Card(
         border = BorderStroke(width = 1.dp, color = AppThemeColor.grey5),
         modifier = Modifier
@@ -721,6 +726,7 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                         .height(25.dp)
                         .width(25.dp),
                     painter = painterResource(R.drawable.ic_bluetooth),
+                    tint = Color.Unspecified,
                     contentDescription = "Bluetooth",
                 )
                 TextComponents(
@@ -729,7 +735,20 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                     color = AppThemeColor.black,
                     typography = MaterialTheme.typography.titleMedium
                 )
+                Spacer(modifier = Modifier.weight(1f))
+
+                ButtonComponents(
+                    modifier = Modifier.padding(0.dp),
+                    color = AppThemeColor.white,
+                    buttonText = "connect",
+                    buttonBgColor = AppThemeColor.primary,
+                    height = 30.dp,
+                    corner = 10,
+                    verticalPadding = 0.dp
+                ) { onConnectClicked.invoke() }
             }
+
+            Spacer(modifier = Modifier.height(2.dp))
 
             //Bluetooth address and RSSI
             //MAC address : RSSI : -12
@@ -739,6 +758,7 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                         .height(20.dp)
                         .width(20.dp),
                     painter = painterResource(R.drawable.ic_address),
+                    tint = Color.Unspecified,
                     contentDescription = "Address",
                 )
                 TextComponents(
@@ -747,11 +767,13 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                     color = AppThemeColor.black,
                     typography = MaterialTheme.typography.bodySmall
                 )
+                Spacer(modifier = Modifier.width(5.dp))
                 Icon(
                     painter = painterResource(R.drawable.ic_rssi),
                     modifier = Modifier
                         .height(20.dp)
                         .width(20.dp),
+                    tint = Color.Unspecified,
                     contentDescription = "RSSI",
                 )
                 TextComponents(
@@ -762,6 +784,8 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                 )
             }
 
+            Spacer(modifier = Modifier.height(2.dp))
+
             //Bluetooth service UUIDs
             //Heart rate, temperature
             if (!device.serviceUUIDs.isEmpty()) {
@@ -771,6 +795,7 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                             .height(20.dp)
                             .width(20.dp),
                         painter = painterResource(R.drawable.ic_rssi),
+                        tint = Color.Unspecified,
                         contentDescription = "Service UUID",
                     )
                     for (uuid in device.serviceUUIDs) {
@@ -787,6 +812,9 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
             //Bluetooth Type | Bond state
             Row(modifier = Modifier.fillMaxWidth()) {
                 Row {
@@ -794,7 +822,7 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                         modifier = Modifier
                             .height(20.dp)
                             .width(20.dp),
-                        painter = painterResource(R.drawable.ic_fines),
+                        painter = painterResource(R.drawable.ic_device_type),
                         contentDescription = "BLE Type",
                         tint = AppThemeColor.black
                     )
@@ -806,12 +834,13 @@ fun BleCard(device: DiscoveredBleDevice, onItemClick: (DiscoveredBleDevice) -> U
                     )
                 }
 
+                Spacer(modifier = Modifier.width(10.dp))
                 Row {
                     Icon(
                         modifier = Modifier
                             .height(20.dp)
                             .width(20.dp),
-                        painter = painterResource(R.drawable.ic_fines),
+                        painter = painterResource(R.drawable.ic_paired),
                         contentDescription = "Bond state",
                         tint = AppThemeColor.black
                     )

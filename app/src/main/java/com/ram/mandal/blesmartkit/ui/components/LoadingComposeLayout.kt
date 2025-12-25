@@ -1,5 +1,6 @@
 package com.ram.mandal.blesmartkit.ui.components
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.ram.mandal.blesmartkit.R
 
 
@@ -21,16 +23,15 @@ import com.ram.mandal.blesmartkit.R
 
 @Composable
 fun LoadingComposeLayout(
-    modifier: Modifier = Modifier
+    boxModifier: Modifier = Modifier,
+    progressModifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
+        modifier = boxModifier
     ) {
         val contentDesc = stringResource(R.string.loading)
         CircularProgressIndicator(
-            modifier = modifier
+            modifier = progressModifier
                 .align(Alignment.Center)
                 .semantics {
                     contentDescription = contentDesc
