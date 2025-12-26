@@ -10,15 +10,16 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ram.mandal.blesmartkit.core.dispatcher.DispatcherProvider
 import com.ram.mandal.blesmartkit.core.logger.Logger
 import com.ram.mandal.blesmartkit.core.networkhelper.NetworkHelper
-import com.ram.mandal.blesmartkit.data.model.DiscoveredBleDevice
 import com.ram.mandal.blesmartkit.data.repository.NepalTrialRepository
 import com.ram.mandal.blesmartkit.ui.UIState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -45,11 +46,17 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
 
-    private val _bleDevices = MutableStateFlow<UIState<List<DiscoveredBleDevice>>>(UIState.Empty)
-    val bleDevices: StateFlow<UIState<List<DiscoveredBleDevice>>> = _bleDevices
+    private val _bleDevices = MutableStateFlow<UIState<List<ScanResult>>>(UIState.Empty)
+    val bleDevices: StateFlow<UIState<List<ScanResult>>> = _bleDevices
+
+    private val _blePairedDevices = MutableStateFlow<UIState<List<ScanResult>>>(UIState.Empty)
+    val blePairedDevices: StateFlow<UIState<List<ScanResult>>> = _blePairedDevices
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
+
+    private val _totalDevices = MutableStateFlow(0)
+    val totalDevices: StateFlow<Int> = _totalDevices
 
 
     private val bluetoothManager =
@@ -67,30 +74,30 @@ class HomeViewModel @Inject constructor(
                         ?: mutableListOf()
 
                     val currentIndex = currentList.indexOfFirst { it ->
-                        it.address == result.device.address
+                        it.device.address == result.device.address
                     }
 
-                    it.device?.let { device ->
-                        val bleDevice = DiscoveredBleDevice(
-                            name = device.name ?: "Unknown",
-                            type = device.type,
-                            address = device.address,
-                            bondState = device.bondState,
-                            rssi = result.rssi,
-                            txPower = result.txPower,
-                            serviceUUIDs = result.scanRecord?.serviceUuids?.map { sId -> sId.uuid.toString() }
-                                ?: emptyList())
-                        if (!currentList.contains(bleDevice)) {
+                    it.let { scanResult ->
+//                        val bleDevice = DiscoveredBleDevice(
+//                            name = device.name ?: "Unknown",
+//                            type = device.type,
+//                            address = device.address,
+//                            bondState = device.bondState,
+//                            rssi = result.rssi,
+//                            txPower = result.txPower,
+//                            serviceUUIDs = result.scanRecord?.serviceUuids?.map { sId -> sId.uuid.toString() }?: emptyList())
+                        if (!currentList.contains(scanResult)) {
                             //update ble device if new found due to rssi update
                             //let say there is device with mac : 12:23:23:21 and rssi 1
                             // later due to rssi updated it will be discovered again so we do not want to
                             //append same device again to the list, instead we update it
                             if (currentIndex >= 0) {
-                                currentList[currentIndex] = bleDevice
+                                currentList[currentIndex] = scanResult
                             } else {
-                                currentList.add(bleDevice)
+                                currentList.add(scanResult)
                             }
                             _bleDevices.emit(UIState.Success(currentList))
+                            _totalDevices.emit(currentList.size)
                         }
                     }
                 }
@@ -126,6 +133,8 @@ class HomeViewModel @Inject constructor(
 
     @SuppressLint("MissingPermission")
     fun startScan() {
+        if (_isScanning.value) return
+
         if (!hasBlePermission()) return
         bleScanner?.startScan(bleScanCallback)
         _isScanning.value = true
@@ -140,10 +149,91 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    @SuppressLint("MissingPermission")
+    fun getDeviceName(bluetoothDevice: BluetoothDevice): String {
+        return bluetoothDevice.name ?: "UN_KNOWN"
+    }
+
+    fun getDeviceAddress(bluetoothDevice: BluetoothDevice): String {
+        return bluetoothDevice.address
+    }
+
+    @SuppressLint("MissingPermission")
+    fun getDeviceType(bluetoothDevice: BluetoothDevice): Int {
+        return bluetoothDevice.type
+    }
+
+    @SuppressLint("MissingPermission")
+    fun getDeviceBondState(bluetoothDevice: BluetoothDevice): Int {
+        return bluetoothDevice.bondState
+    }
+
     // Reset BLE state before retry scan
     fun bleDevicesReset() {
         viewModelScope.launch { _bleDevices.emit(UIState.Empty) }
     }
+
+    fun isBluetoothEnabled(): Boolean {
+        val bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        return bluetoothManager.adapter?.isEnabled ?: false
+    }
+
+    fun enableBluetooth() {
+
+    }
+
+    fun disableBlueTooth() {
+
+    }
+
+    fun isLocationEnabled(): Boolean {
+        val locationManager =
+            context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            locationManager.isLocationEnabled
+        } else {
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                    locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        }
+    }
+
+
+    fun enableLocation() {
+
+    }
+
+    @SuppressLint("MissingPermission")
+    fun isDeviceBonded(device: BluetoothDevice): Boolean {
+        return device.bondState == BluetoothDevice.BOND_BONDED
+    }
+
+    @SuppressLint("MissingPermission")
+    fun bondDevice(device: BluetoothDevice) {
+        if (device.bondState == BluetoothDevice.BOND_NONE) {
+            device.createBond()
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun onDeviceBonded(device: BluetoothDevice){
+        logger.d("HomeViewModel","Device bonded successfully with ${device.name}")
+    }
+
+    @SuppressLint("MissingPermission")
+    fun onDeviceBondFailed(device: BluetoothDevice){
+        logger.d("HomeViewModel","Device bonded failed for ${device.name}")
+    }
+
+    @SuppressLint("MissingPermission")
+    fun getBondedDevices(): List<BluetoothDevice> {
+        val bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+
+         bluetoothManager.adapter?.bondedDevices?.toList() ?: emptyList()
+    }
+
 
 }
 

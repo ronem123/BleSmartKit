@@ -2,7 +2,6 @@ package com.ram.mandal.blesmartkit.util
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Application
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.pm.PackageManager
@@ -10,8 +9,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
 import androidx.core.content.ContextCompat
-import com.ram.mandal.blesmartkit.data.model.DiscoveredBleDevice
-import dagger.hilt.android.internal.Contexts.getApplication
 
 object MyIntent {
     val video = "video_key"

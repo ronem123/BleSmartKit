@@ -1,5 +1,7 @@
 package com.ram.mandal.blesmartkit.ui.screens.home
 
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.le.ScanResult
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -26,8 +28,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.ram.mandal.blesmartkit.R
-import com.ram.mandal.blesmartkit.data.model.DiscoveredBleDevice
 import com.ram.mandal.blesmartkit.data.model.MenuConfig
 import com.ram.mandal.blesmartkit.data.model.MyMenuItem
 import com.ram.mandal.blesmartkit.data.model.MyVideo
@@ -703,10 +702,18 @@ fun ManoranjanaatmakNewsRow(newsItem: NewsItem, onItemClick: (NewsItem) -> Unit)
 
 @Composable
 fun BleCard(
-    device: DiscoveredBleDevice,
-    onItemClick: (DiscoveredBleDevice) -> Unit,
+    viewModel: HomeViewModel,
+    scanResult: ScanResult,
+    onItemClick: (ScanResult) -> Unit,
     onConnectClicked: () -> Unit
 ) {
+    val serviceUUIDs = scanResult.scanRecord?.serviceUuids?.map { sId -> sId.uuid.toString() }
+        ?: emptyList()
+    val deviceType = viewModel.getDeviceType(scanResult.device)
+    val deviceBondState = viewModel.getDeviceBondState(scanResult.device)
+    val deviceName = viewModel.getDeviceName(scanResult.device)
+    val deviceAddress = viewModel.getDeviceAddress(scanResult.device)
+
     Card(
         border = BorderStroke(width = 1.dp, color = AppThemeColor.grey5),
         modifier = Modifier
@@ -717,7 +724,7 @@ fun BleCard(
         colors = CardDefaults.cardColors(containerColor = AppThemeColor.greyLight),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(5.dp),
-        onClick = { onItemClick.invoke(device) }) {
+        onClick = { onItemClick.invoke(scanResult) }) {
         Column(modifier = Modifier.padding(10.dp)) {
             //Bluetooth device name
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -730,7 +737,7 @@ fun BleCard(
                     contentDescription = "Bluetooth",
                 )
                 TextComponents(
-                    text = device.name,
+                    text = deviceName,
                     modifier = Modifier.padding(4.dp, 0.dp),
                     color = AppThemeColor.black,
                     typography = MaterialTheme.typography.titleMedium
@@ -762,14 +769,14 @@ fun BleCard(
                     contentDescription = "Address",
                 )
                 TextComponents(
-                    text = device.address,
+                    text = deviceAddress,
                     modifier = Modifier.padding(4.dp, 0.dp),
                     color = AppThemeColor.black,
                     typography = MaterialTheme.typography.bodySmall
                 )
                 Spacer(modifier = Modifier.width(5.dp))
                 Icon(
-                    painter = painterResource(R.drawable.ic_rssi),
+                    painter = painterResource(R.drawable.ic_network),
                     modifier = Modifier
                         .height(20.dp)
                         .width(20.dp),
@@ -777,7 +784,7 @@ fun BleCard(
                     contentDescription = "RSSI",
                 )
                 TextComponents(
-                    text = device.rssi.toString(),
+                    text = scanResult.rssi.toString(),
                     modifier = Modifier.padding(4.dp, 0.dp),
                     color = AppThemeColor.black,
                     typography = MaterialTheme.typography.bodySmall
@@ -788,7 +795,8 @@ fun BleCard(
 
             //Bluetooth service UUIDs
             //Heart rate, temperature
-            if (!device.serviceUUIDs.isEmpty()) {
+
+            if (!serviceUUIDs.isEmpty()) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Icon(
                         modifier = Modifier
@@ -798,7 +806,7 @@ fun BleCard(
                         tint = Color.Unspecified,
                         contentDescription = "Service UUID",
                     )
-                    for (uuid in device.serviceUUIDs) {
+                    for (uuid in serviceUUIDs) {
                         Log.v("ServiceUUID", uuid)
                         ButtonComponents(
                             modifier = Modifier.padding(0.dp),
@@ -827,7 +835,7 @@ fun BleCard(
                         tint = AppThemeColor.black
                     )
                     TextComponents(
-                        text = bleType(device.type),
+                        text = bleType(deviceType),
                         modifier = Modifier.padding(4.dp, 0.dp),
                         color = AppThemeColor.black,
                         typography = MaterialTheme.typography.bodySmall
@@ -845,7 +853,7 @@ fun BleCard(
                         tint = AppThemeColor.black
                     )
                     TextComponents(
-                        text = bleBondState(device.bondState),
+                        text = bleBondState(deviceBondState),
                         modifier = Modifier.padding(4.dp, 0.dp),
                         color = AppThemeColor.black,
                         typography = MaterialTheme.typography.bodySmall
