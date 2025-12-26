@@ -170,12 +170,9 @@ fun TabScanDevice(viewModel: HomeViewModel, context: Context) {
                                 viewModel.bondDevice(device = scanResult.device)
                             }
                         }, {
-                            val device = scanResult.device
-                            Toast.makeText(
-                                context,
-                                "connect: ${viewModel.getDeviceName(bluetoothDevice = device)}",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            if (!viewModel.isDeviceBonded(scanResult.device)) {
+                                viewModel.bondDevice(device = scanResult.device)
+                            }
                         })
                     }
 

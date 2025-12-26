@@ -5,7 +5,10 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.Context
@@ -49,8 +52,8 @@ class HomeViewModel @Inject constructor(
     private val _bleDevices = MutableStateFlow<UIState<List<ScanResult>>>(UIState.Empty)
     val bleDevices: StateFlow<UIState<List<ScanResult>>> = _bleDevices
 
-    private val _blePairedDevices = MutableStateFlow<UIState<List<ScanResult>>>(UIState.Empty)
-    val blePairedDevices: StateFlow<UIState<List<ScanResult>>> = _blePairedDevices
+    private val _blePairedDevices = MutableStateFlow<UIState<List<BluetoothDevice>>>(UIState.Empty)
+    val blePairedDevices: StateFlow<UIState<List<BluetoothDevice>>> = _blePairedDevices
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
@@ -63,6 +66,11 @@ class HomeViewModel @Inject constructor(
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
     private val bleScanner = bluetoothAdapter?.bluetoothLeScanner
+
+
+    private var bluetoothGatt: BluetoothGatt? = null
+    private val _connectionState = MutableStateFlow<Int>(BluetoothProfile.STATE_DISCONNECTED)
+    val connectionState: StateFlow<Int> = _connectionState
 
     private val bleScanCallback = object : ScanCallback() {
 
@@ -78,14 +86,6 @@ class HomeViewModel @Inject constructor(
                     }
 
                     it.let { scanResult ->
-//                        val bleDevice = DiscoveredBleDevice(
-//                            name = device.name ?: "Unknown",
-//                            type = device.type,
-//                            address = device.address,
-//                            bondState = device.bondState,
-//                            rssi = result.rssi,
-//                            txPower = result.txPower,
-//                            serviceUUIDs = result.scanRecord?.serviceUuids?.map { sId -> sId.uuid.toString() }?: emptyList())
                         if (!currentList.contains(scanResult)) {
                             //update ble device if new found due to rssi update
                             //let say there is device with mac : 12:23:23:21 and rssi 1
@@ -106,13 +106,46 @@ class HomeViewModel @Inject constructor(
         }
 
         override fun onScanFailed(errorCode: Int) {
-//            viewModelScope.launch {
-//                if (_bleDevices.value !is UIState.Failure) {
-//                    _bleDevices.emit(UIState.Failure(Throwable("can't scan")))
-//                }
-//            }
+
         }
     }
+
+    private val gattCallback = object : BluetoothGattCallback() {
+
+        @SuppressLint("MissingPermission")
+        override fun onConnectionStateChange(
+            gatt: BluetoothGatt,
+            status: Int,
+            newState: Int
+        ) {
+            _connectionState.value = newState
+
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                logger.d("BLE","State-Connected")
+                Log.d("BLE", "Connected to GATT server")
+                gatt.discoverServices()
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                Log.d("BLE", "Disconnected from GATT server")
+                bluetoothGatt?.close()
+                bluetoothGatt = null
+            }
+        }
+
+        override fun onServicesDiscovered(
+            gatt: BluetoothGatt,
+            status: Int
+        ) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                gatt.services.forEach { service ->
+                    Log.d("BLE", "Service: ${service.uuid}")
+                    service.characteristics.forEach { characteristic ->
+                        Log.d("BLE", "  Characteristic: ${characteristic.uuid}")
+                    }
+                }
+            }
+        }
+    }
+
 
     private fun hasBlePermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -217,23 +250,36 @@ class HomeViewModel @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    fun onDeviceBonded(device: BluetoothDevice){
-        logger.d("HomeViewModel","Device bonded successfully with ${device.name}")
+    fun onDeviceBonded(device: BluetoothDevice) {
+        logger.d("HomeViewModel", "Device bonded successfully with ${device.name}")
     }
 
     @SuppressLint("MissingPermission")
-    fun onDeviceBondFailed(device: BluetoothDevice){
-        logger.d("HomeViewModel","Device bonded failed for ${device.name}")
+    fun onDeviceBondFailed(device: BluetoothDevice) {
+        logger.d("HomeViewModel", "Device bonded failed for ${device.name}")
     }
 
     @SuppressLint("MissingPermission")
-    fun getBondedDevices(): List<BluetoothDevice> {
+    fun getBondedDevices() {
         val bluetoothManager =
             context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-
-         bluetoothManager.adapter?.bondedDevices?.toList() ?: emptyList()
+        viewModelScope.launch {
+            _blePairedDevices.emit(
+                UIState.Success(
+                    bluetoothManager.adapter?.bondedDevices?.toList() ?: emptyList()
+                )
+            )
+        }
     }
 
+    @SuppressLint("MissingPermission")
+    fun connectToDevice(device: BluetoothDevice) {
+        device.connectGatt(
+            context,
+            false, // autoConnect = false (IMPORTANT)
+            gattCallback
+        )
+    }
 
 }
 

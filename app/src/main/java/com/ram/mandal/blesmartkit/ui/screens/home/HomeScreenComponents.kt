@@ -747,8 +747,8 @@ fun BleCard(
                 ButtonComponents(
                     modifier = Modifier.padding(0.dp),
                     color = AppThemeColor.white,
-                    buttonText = "connect",
-                    buttonBgColor = AppThemeColor.primary,
+                    buttonText = "Tap to bond | Pair",
+                    buttonBgColor = AppThemeColor.orange30,
                     height = 30.dp,
                     corner = 10,
                     verticalPadding = 0.dp
@@ -864,3 +864,121 @@ fun BleCard(
     }
 }
 
+
+@Composable
+fun BleCard(
+    viewModel: HomeViewModel,
+    bleDevice: BluetoothDevice,
+    onItemClick: (BluetoothDevice) -> Unit,
+    onConnectClicked: () -> Unit
+) {
+    val deviceType = viewModel.getDeviceType(bleDevice)
+    val deviceBondState = viewModel.getDeviceBondState(bleDevice)
+    val deviceName = viewModel.getDeviceName(bleDevice)
+    val deviceAddress = viewModel.getDeviceAddress(bleDevice)
+
+    Card(
+        border = BorderStroke(width = 1.dp, color = AppThemeColor.grey5),
+        modifier = Modifier
+            .padding(4.dp)
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 100.dp)
+            .wrapContentHeight(),
+        colors = CardDefaults.cardColors(containerColor = AppThemeColor.greyLight),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(5.dp),
+        onClick = { onItemClick.invoke(bleDevice) }) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            //Bluetooth device name
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Icon(
+                    modifier = Modifier
+                        .height(25.dp)
+                        .width(25.dp),
+                    painter = painterResource(R.drawable.ic_bluetooth),
+                    tint = Color.Unspecified,
+                    contentDescription = "Bluetooth",
+                )
+                TextComponents(
+                    text = deviceName,
+                    modifier = Modifier.padding(4.dp, 0.dp),
+                    color = AppThemeColor.black,
+                    typography = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.weight(1f))
+
+                ButtonComponents(
+                    modifier = Modifier.padding(0.dp),
+                    color = AppThemeColor.white,
+                    buttonText = "connect",
+                    buttonBgColor = AppThemeColor.primary,
+                    height = 30.dp,
+                    corner = 10,
+                    verticalPadding = 0.dp
+                ) { onConnectClicked.invoke() }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            //Bluetooth address and RSSI
+            //MAC address : RSSI : -12
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Icon(
+                    modifier = Modifier
+                        .height(20.dp)
+                        .width(20.dp),
+                    painter = painterResource(R.drawable.ic_address),
+                    tint = Color.Unspecified,
+                    contentDescription = "Address",
+                )
+                TextComponents(
+                    text = deviceAddress,
+                    modifier = Modifier.padding(4.dp, 0.dp),
+                    color = AppThemeColor.black,
+                    typography = MaterialTheme.typography.bodySmall
+                )
+            }
+
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            //Bluetooth Type | Bond state
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Row {
+                    Icon(
+                        modifier = Modifier
+                            .height(20.dp)
+                            .width(20.dp),
+                        painter = painterResource(R.drawable.ic_device_type),
+                        contentDescription = "BLE Type",
+                        tint = AppThemeColor.black
+                    )
+                    TextComponents(
+                        text = bleType(deviceType),
+                        modifier = Modifier.padding(4.dp, 0.dp),
+                        color = AppThemeColor.black,
+                        typography = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+                Row {
+                    Icon(
+                        modifier = Modifier
+                            .height(20.dp)
+                            .width(20.dp),
+                        painter = painterResource(R.drawable.ic_paired),
+                        contentDescription = "Bond state",
+                        tint = AppThemeColor.black
+                    )
+                    TextComponents(
+                        text = bleBondState(deviceBondState),
+                        modifier = Modifier.padding(4.dp, 0.dp),
+                        color = AppThemeColor.black,
+                        typography = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
