@@ -33,7 +33,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -980,5 +983,17 @@ fun BleCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun DeviceInfoScreen(viewModel: HomeViewModel) {
+    val info by viewModel.deviceInfo.collectAsState()
+
+    Column {
+        Text("Battery: ${info.batteryLevel ?: "--"}%")
+        Text("Manufacturer: ${info.manufacturer ?: "--"}")
+        Text("Model: ${info.model ?: "--"}")
+        Text("Heart Rate: ${info.heartRate ?: "--"} bpm")
     }
 }

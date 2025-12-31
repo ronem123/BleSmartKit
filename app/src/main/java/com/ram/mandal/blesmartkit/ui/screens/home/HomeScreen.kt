@@ -67,5 +67,4 @@ fun HomeContent(viewModel: HomeViewModel, context: Context = LocalContext.curren
             HomeTab.PAIRED -> TabPairedDeviceTab(viewModel, context)
         }
     }
-
 }
