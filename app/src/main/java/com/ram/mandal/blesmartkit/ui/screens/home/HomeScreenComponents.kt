@@ -986,14 +986,3 @@ fun BleCard(
     }
 }
 
-@Composable
-fun DeviceInfoScreen(viewModel: HomeViewModel) {
-    val info by viewModel.deviceInfo.collectAsState()
-
-    Column {
-        Text("Battery: ${info.batteryLevel ?: "--"}%")
-        Text("Manufacturer: ${info.manufacturer ?: "--"}")
-        Text("Model: ${info.model ?: "--"}")
-        Text("Heart Rate: ${info.heartRate ?: "--"} bpm")
-    }
-}

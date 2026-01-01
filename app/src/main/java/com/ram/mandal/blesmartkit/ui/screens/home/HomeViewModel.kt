@@ -5,12 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.Context
@@ -18,27 +13,19 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ram.mandal.blesmartkit.core.dispatcher.DispatcherProvider
 import com.ram.mandal.blesmartkit.core.logger.Logger
 import com.ram.mandal.blesmartkit.core.networkhelper.NetworkHelper
-import com.ram.mandal.blesmartkit.data.BleUuids
-import com.ram.mandal.blesmartkit.data.model.BleDeviceInfo
 import com.ram.mandal.blesmartkit.data.repository.NepalTrialRepository
 import com.ram.mandal.blesmartkit.ui.UIState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.UUID
 import javax.inject.Inject
-import javax.inject.Scope
 
 
 /**
@@ -68,8 +55,8 @@ class HomeViewModel @Inject constructor(
     private val _totalDevices = MutableStateFlow(0)
     val totalDevices: StateFlow<Int> = _totalDevices
 
-    private val _deviceInfo = MutableStateFlow(BleDeviceInfo())
-    val deviceInfo: StateFlow<BleDeviceInfo> = _deviceInfo
+//    private val _deviceInfo = MutableStateFlow(BleDeviceInfo())
+//    val deviceInfo: StateFlow<BleDeviceInfo> = _deviceInfo
 
 
     private val bluetoothManager =
@@ -78,9 +65,9 @@ class HomeViewModel @Inject constructor(
     private val bleScanner = bluetoothAdapter?.bluetoothLeScanner
 
 
-    private var bluetoothGatt: BluetoothGatt? = null
-    private val _connectionState = MutableStateFlow<Int>(BluetoothProfile.STATE_DISCONNECTED)
-    val connectionState: StateFlow<Int> = _connectionState
+//    private var bluetoothGatt: BluetoothGatt? = null
+//    private val _connectionState = MutableStateFlow<Int>(BluetoothProfile.STATE_DISCONNECTED)
+//    val connectionState: StateFlow<Int> = _connectionState
 
     private val bleScanCallback = object : ScanCallback() {
 
@@ -119,150 +106,150 @@ class HomeViewModel @Inject constructor(
 
         }
     }
-
-    private val gattCallback = object : BluetoothGattCallback() {
-
-        @SuppressLint("MissingPermission")
-        override fun onConnectionStateChange(
-            gatt: BluetoothGatt,
-            status: Int,
-            newState: Int
-        ) {
-            _connectionState.value = newState
-
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                logger.d("BLE", "State-Connected")
-                Log.d("BLE", "Connected to GATT server")
-                gatt.discoverServices()
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                Log.d("BLE", "Disconnected from GATT server")
-                bluetoothGatt?.close()
-                bluetoothGatt = null
-            }
-        }
-
-        override fun onServicesDiscovered(
-            gatt: BluetoothGatt,
-            status: Int
-        ) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                gatt.services.forEach { service ->
-                    Log.d("BLE", "Service discovered")
-                    onServicesReady(gatt)
-                }
-            } else {
-                Log.d("BLE", "Service discovered Failed")
-            }
-        }
-
-        override fun onCharacteristicRead(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
-        ) {
-            when (characteristic.uuid) {
-                BleUuids.BATTERY_CHAR -> handleBattery(characteristic)
-                BleUuids.MANUFACTURER_CHAR,
-                BleUuids.MODEL_CHAR,
-                BleUuids.SERIAL_CHAR -> handleDeviceInfo(characteristic)
-            }
-        }
-
-        override fun onCharacteristicChanged(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic
-        ) {
-            when (characteristic.uuid) {
-                BleUuids.HEART_RATE_CHAR -> handleHeartRate(characteristic)
-            }
-        }
-
-    }
-
-    private fun onServicesReady(gatt: BluetoothGatt) {
-        readBattery(gatt)
-        readDeviceInfo(gatt)
-        enableHeartRateNotifications(gatt)
-    }
-
-    private fun readBattery(gatt: BluetoothGatt) {
-        val service = gatt.getService(BleUuids.BATTERY_SERVICE) ?: return
-        val characteristic = service.getCharacteristic(BleUuids.BATTERY_CHAR)
-        gatt.readCharacteristic(characteristic)
-    }
-
-    private fun handleBattery(characteristic: BluetoothGattCharacteristic) {
-        val battery = characteristic.value[0].toInt()
-
-        _deviceInfo.update {
-            it.copy(batteryLevel = battery)
-        }
-    }
-
-    private fun readDeviceInfo(gatt: BluetoothGatt) {
-        val service = gatt.getService(BleUuids.DEVICE_INFO_SERVICE) ?: return
-
-        listOf(
-            BleUuids.MANUFACTURER_CHAR,
-            BleUuids.MODEL_CHAR,
-            BleUuids.SERIAL_CHAR
-        ).forEach { uuid ->
-            service.getCharacteristic(uuid)?.let {
-                gatt.readCharacteristic(it)
-            }
-        }
-    }
-
-    private fun handleDeviceInfo(characteristic: BluetoothGattCharacteristic) {
-        val value = characteristic.getStringValue(0)
-
-        _deviceInfo.update {
-            when (characteristic.uuid) {
-                BleUuids.MANUFACTURER_CHAR ->
-                    it.copy(manufacturer = value)
-
-                BleUuids.MODEL_CHAR ->
-                    it.copy(model = value)
-
-                BleUuids.SERIAL_CHAR ->
-                    it.copy(serialNumber = value)
-
-                else -> it
-            }
-        }
-    }
-
-    private fun enableHeartRateNotifications(gatt: BluetoothGatt) {
-        val service = gatt.getService(BleUuids.HEART_RATE_SERVICE) ?: return
-        val characteristic = service.getCharacteristic(BleUuids.HEART_RATE_CHAR)
-
-        gatt.setCharacteristicNotification(characteristic, true)
-
-        val cccd = characteristic.getDescriptor(
-            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-        )
-        cccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-        gatt.writeDescriptor(cccd)
-    }
-
-    private fun handleHeartRate(characteristic: BluetoothGattCharacteristic) {
-        val flags = characteristic.value[0].toInt()
-        val is16Bit = flags and 0x01 != 0
-
-        val heartRate =
-            if (is16Bit)
-                characteristic.getIntValue(
-                    BluetoothGattCharacteristic.FORMAT_UINT16, 1
-                )
-            else
-                characteristic.getIntValue(
-                    BluetoothGattCharacteristic.FORMAT_UINT8, 1
-                )
-
-        _deviceInfo.update {
-            it.copy(heartRate = heartRate)
-        }
-    }
+//
+//    private val gattCallback = object : BluetoothGattCallback() {
+//
+//        @SuppressLint("MissingPermission")
+//        override fun onConnectionStateChange(
+//            gatt: BluetoothGatt,
+//            status: Int,
+//            newState: Int
+//        ) {
+//            _connectionState.value = newState
+//
+//            if (newState == BluetoothProfile.STATE_CONNECTED) {
+//                logger.d("BLE", "State-Connected")
+//                Log.d("BLE", "Connected to GATT server")
+//                gatt.discoverServices()
+//            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+//                Log.d("BLE", "Disconnected from GATT server")
+//                bluetoothGatt?.close()
+//                bluetoothGatt = null
+//            }
+//        }
+//
+//        override fun onServicesDiscovered(
+//            gatt: BluetoothGatt,
+//            status: Int
+//        ) {
+//            if (status == BluetoothGatt.GATT_SUCCESS) {
+//                gatt.services.forEach { service ->
+//                    Log.d("BLE", "Service discovered")
+//                    onServicesReady(gatt)
+//                }
+//            } else {
+//                Log.d("BLE", "Service discovered Failed")
+//            }
+//        }
+//
+//        override fun onCharacteristicRead(
+//            gatt: BluetoothGatt,
+//            characteristic: BluetoothGattCharacteristic,
+//            status: Int
+//        ) {
+//            when (characteristic.uuid) {
+//                BleUuids.BATTERY_CHAR -> handleBattery(characteristic)
+//                BleUuids.MANUFACTURER_CHAR,
+//                BleUuids.MODEL_CHAR,
+//                BleUuids.SERIAL_CHAR -> handleDeviceInfo(characteristic)
+//            }
+//        }
+//
+//        override fun onCharacteristicChanged(
+//            gatt: BluetoothGatt,
+//            characteristic: BluetoothGattCharacteristic
+//        ) {
+//            when (characteristic.uuid) {
+//                BleUuids.HEART_RATE_CHAR -> handleHeartRate(characteristic)
+//            }
+//        }
+//
+//    }
+//
+//    private fun onServicesReady(gatt: BluetoothGatt) {
+//        readBattery(gatt)
+//        readDeviceInfo(gatt)
+//        enableHeartRateNotifications(gatt)
+//    }
+//
+//    private fun readBattery(gatt: BluetoothGatt) {
+//        val service = gatt.getService(BleUuids.BATTERY_SERVICE) ?: return
+//        val characteristic = service.getCharacteristic(BleUuids.BATTERY_CHAR)
+//        gatt.readCharacteristic(characteristic)
+//    }
+//
+//    private fun handleBattery(characteristic: BluetoothGattCharacteristic) {
+//        val battery = characteristic.value[0].toInt()
+//
+//        _deviceInfo.update {
+//            it.copy(batteryLevel = battery)
+//        }
+//    }
+//
+//    private fun readDeviceInfo(gatt: BluetoothGatt) {
+//        val service = gatt.getService(BleUuids.DEVICE_INFO_SERVICE) ?: return
+//
+//        listOf(
+//            BleUuids.MANUFACTURER_CHAR,
+//            BleUuids.MODEL_CHAR,
+//            BleUuids.SERIAL_CHAR
+//        ).forEach { uuid ->
+//            service.getCharacteristic(uuid)?.let {
+//                gatt.readCharacteristic(it)
+//            }
+//        }
+//    }
+//
+//    private fun handleDeviceInfo(characteristic: BluetoothGattCharacteristic) {
+//        val value = characteristic.getStringValue(0)
+//
+//        _deviceInfo.update {
+//            when (characteristic.uuid) {
+//                BleUuids.MANUFACTURER_CHAR ->
+//                    it.copy(manufacturer = value)
+//
+//                BleUuids.MODEL_CHAR ->
+//                    it.copy(model = value)
+//
+//                BleUuids.SERIAL_CHAR ->
+//                    it.copy(serialNumber = value)
+//
+//                else -> it
+//            }
+//        }
+//    }
+//
+//    private fun enableHeartRateNotifications(gatt: BluetoothGatt) {
+//        val service = gatt.getService(BleUuids.HEART_RATE_SERVICE) ?: return
+//        val characteristic = service.getCharacteristic(BleUuids.HEART_RATE_CHAR)
+//
+//        gatt.setCharacteristicNotification(characteristic, true)
+//
+//        val ccd = characteristic.getDescriptor(
+//            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+//        )
+//        ccd.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+//        gatt.writeDescriptor(ccd)
+//    }
+//
+//    private fun handleHeartRate(characteristic: BluetoothGattCharacteristic) {
+//        val flags = characteristic.value[0].toInt()
+//        val is16Bit = flags and 0x01 != 0
+//
+//        val heartRate =
+//            if (is16Bit)
+//                characteristic.getIntValue(
+//                    BluetoothGattCharacteristic.FORMAT_UINT16, 1
+//                )
+//            else
+//                characteristic.getIntValue(
+//                    BluetoothGattCharacteristic.FORMAT_UINT8, 1
+//                )
+//
+//        _deviceInfo.update {
+//            it.copy(heartRate = heartRate)
+//        }
+//    }
 
 
     private fun hasBlePermission(): Boolean {
@@ -390,14 +377,14 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    @SuppressLint("MissingPermission")
-    fun connectToDevice(device: BluetoothDevice) {
-        device.connectGatt(
-            context,
-            false, // autoConnect = false (IMPORTANT)
-            gattCallback
-        )
-    }
+//    @SuppressLint("MissingPermission")
+//    fun connectToDevice(device: BluetoothDevice) {
+//        device.connectGatt(
+//            context,
+//            false, // autoConnect = false (IMPORTANT)
+//            gattCallback
+//        )
+//    }
 
 }
 

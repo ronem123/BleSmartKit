@@ -31,15 +31,18 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.ram.mandal.blesmartkit.data.model.getNavigationItems
 import com.ram.mandal.blesmartkit.data.network.ApiService
 import com.ram.mandal.blesmartkit.ui.components.NavigationDrawerBody
 import com.ram.mandal.blesmartkit.ui.components.NavigationDrawerHeader
 import com.ram.mandal.blesmartkit.ui.routes.NavigationRoutes
+import com.ram.mandal.blesmartkit.ui.screens.devicedetails.DeviceDetailScreen
 import com.ram.mandal.blesmartkit.ui.screens.home.HomeScreen
 import com.ram.mandal.blesmartkit.ui.theme.AppThemeColor
 import com.ram.mandal.blesmartkit.ui.theme.BleSmartKitTheme
@@ -123,7 +126,18 @@ fun MainScreen() {
                 startDestination = NavigationRoutes.home,
                 modifier = Modifier.padding(innerPadding)
             ) {
-                composable(NavigationRoutes.home) { HomeScreen() }
+                composable(route = NavigationRoutes.home) {
+                    HomeScreen(navController = navController)
+                }
+                composable(
+                    route = "device/{address}/{name}",
+                    arguments = listOf(
+                        navArgument("address") { type = NavType.StringType },
+                        navArgument("name") { type = NavType.StringType }
+                    )
+                ) {
+                    DeviceDetailScreen()
+                }
             }
         }
     }

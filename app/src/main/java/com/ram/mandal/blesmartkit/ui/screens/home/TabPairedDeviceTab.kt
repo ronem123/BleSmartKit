@@ -2,7 +2,6 @@ package com.ram.mandal.blesmartkit.ui.screens.home
 
 import android.bluetooth.BluetoothDevice
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,7 +26,11 @@ import com.ram.mandal.blesmartkit.ui.theme.AppThemeColor
  * @System: Apple M1 Pro
  */
 @Composable
-fun TabPairedDeviceTab(viewModel: HomeViewModel, context: Context) {
+fun TabPairedDeviceTab(
+    viewModel: HomeViewModel,
+    context: Context,
+    onDetailScreenNavigate: (BluetoothDevice) -> Unit
+) {
     val pairedDeviceState: UIState<List<BluetoothDevice>> by viewModel.blePairedDevices.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         viewModel.getBondedDevices()
@@ -55,9 +58,9 @@ fun TabPairedDeviceTab(viewModel: HomeViewModel, context: Context) {
                     }
                     items(bleDevices) { bleDevice ->
                         BleCard(viewModel, bleDevice = bleDevice, onItemClick = {
-                            viewModel.connectToDevice(bleDevice)
+                            onDetailScreenNavigate.invoke(bleDevice)
                         }, {
-                            viewModel.connectToDevice(bleDevice)
+                            onDetailScreenNavigate.invoke(bleDevice)
                         })
                     }
 
