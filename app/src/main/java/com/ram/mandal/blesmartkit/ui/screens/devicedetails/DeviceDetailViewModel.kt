@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.LinkedList
+import java.util.Queue
 import java.util.UUID
 import javax.inject.Inject
 
@@ -47,7 +49,7 @@ class DeviceDetailViewModel @Inject constructor(
     private val dispatcherProvider: DispatcherProvider,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-
+    private val characteristicQueue: Queue<BluetoothGattCharacteristic> = LinkedList()
     private val deviceName = savedStateHandle.get<String>("name") ?: "Unknown"
     private val address =
         savedStateHandle.get<String>("address") ?: error("Device address is missing")
@@ -123,6 +125,8 @@ class DeviceDetailViewModel @Inject constructor(
                 BleUuids.MODEL_CHAR,
                 BleUuids.SERIAL_CHAR -> handleDeviceInfo(characteristic)
             }
+            // trigger next read in queue
+            readNextCharacteristic(gatt)
         }
 
         override fun onCharacteristicChanged(
@@ -137,9 +141,33 @@ class DeviceDetailViewModel @Inject constructor(
     }
 
     private fun onServicesReady(gatt: BluetoothGatt) {
-        readBattery(gatt)
-        readDeviceInfo(gatt)
+        val batteryChar = gatt.getService(BleUuids.BATTERY_SERVICE)?.getCharacteristic(BleUuids.BATTERY_CHAR)
+        val deviceInfoService = gatt.getService(BleUuids.DEVICE_INFO_SERVICE)
+        val deviceChars = listOfNotNull(
+            deviceInfoService?.getCharacteristic(BleUuids.MANUFACTURER_CHAR),
+            deviceInfoService?.getCharacteristic(BleUuids.MODEL_CHAR),
+            deviceInfoService?.getCharacteristic(BleUuids.SERIAL_CHAR)
+        )
+
+        val allChars = mutableListOf<BluetoothGattCharacteristic>()
+        batteryChar?.let { allChars.add(it) }
+        allChars.addAll(deviceChars)
+
+        readCharacteristicsSequentially(gatt, allChars)
+
         enableHeartRateNotifications(gatt)
+    }
+
+
+    private fun readCharacteristicsSequentially(gatt: BluetoothGatt, characteristics: List<BluetoothGattCharacteristic>) {
+        characteristicQueue.clear()
+        characteristicQueue.addAll(characteristics)
+        readNextCharacteristic(gatt)
+    }
+
+    private fun readNextCharacteristic(gatt: BluetoothGatt) {
+        val next = characteristicQueue.poll() ?: return // no more
+        gatt.readCharacteristic(next)
     }
 
     private fun readBattery(gatt: BluetoothGatt) {
@@ -188,7 +216,7 @@ class DeviceDetailViewModel @Inject constructor(
                 else -> it
             }
         }
-        logger.d("DeviceDetailViewModel", "Handle DeviceInfo")
+        logger.d("DeviceDetailViewModel", "Handle DeviceInfo ::$value")
     }
 
     private fun enableHeartRateNotifications(gatt: BluetoothGatt) {
